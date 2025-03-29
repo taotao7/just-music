@@ -1,7 +1,14 @@
-# Tauri + React + Typescript
+# Just Music
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+This project aims to create a clean music player software
+I don't need to see chat history or any other messy features
 
-## Recommended IDE Setup
+** keep simple and lightweight **
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+## TODO
+
+- [ ] base ui
+- [ ] mp3 wav flac support
+- [ ] online file support
+- [ ] local file support
+- [ ] desktop lyrics

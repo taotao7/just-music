@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "demo",
+  "productName": "Just Music",
   "version": "0.1.0",
-  "identifier": "com.demo.app",
+  "identifier": "com.justmusic.app",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -12,13 +12,28 @@
   "app": {
     "windows": [
       {
-        "title": "demo",
-        "width": 800,
-        "height": 600
+        "title": "Just Music",
+        "width": 300,
+        "height": 400,
+        "resizable": false,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "center": true
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "capabilities": [
+        {
+          "identifier": "com.justmusic.app",
+          "windows": ["*"],
+          "permissions": [
+            "core:window:allow-start-dragging",
+            "core:window:allow-hide",
+            "core:app:allow-app-hide"
+          ]
+        }
+      ]
     }
   },
   "bundle": {
