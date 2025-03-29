@@ -1,17 +1,17 @@
 import { create } from "zustand";
-import { CurrentSong, Song } from "../types";
+import { Song } from "../types";
 
 interface Store {
   audioDir: string;
   songs: Song[];
-  currentSong: CurrentSong;
+  currentSong: Song;
   isPlaying: boolean;
 }
 
 interface StoreActions {
   setAudioDir: (dir: string) => void;
   setSongs: (songs: Song[]) => void;
-  setCurrentSong: (song: CurrentSong) => void;
+  setCurrentSong: (song: Song) => void;
   setIsPlaying: (isPlaying: boolean) => void;
 }
 
@@ -23,8 +23,7 @@ export const useStore = create<Store & StoreActions>((set) => ({
   currentSong: {
     id: "",
     name: "",
-    current: "01:41",
-    total: "04:43",
+    artist: "",
     path: "",
   },
   isPlaying: false,

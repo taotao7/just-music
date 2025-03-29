@@ -2,19 +2,13 @@ import { useEffect } from "react";
 import { TitleBar } from "./components/title-bar";
 import { PlayerControls } from "./components/player-controls";
 import { PlayList } from "./components/play-list";
-import { DirEntry, readDir } from "@tauri-apps/plugin-fs";
-import { audioDir, join } from "@tauri-apps/api/path";
+import { readDir } from "@tauri-apps/plugin-fs";
+import { audioDir, join, basename } from "@tauri-apps/api/path";
 import { useStore } from "./store";
+import { parseMetadata } from "./utils/metadata-parser";
 
 function App() {
-  const {
-    songs,
-    setSongs,
-    currentSong,
-    setCurrentSong,
-    isPlaying,
-    setIsPlaying,
-  } = useStore();
+  const { setSongs, currentSong, setCurrentSong } = useStore();
 
   useEffect(() => {
     // 读取音频目录
@@ -38,17 +32,40 @@ function App() {
               return false;
             });
 
-            // 处理每个音频文件，创建完整路径
+            // 处理每个音频文件，创建完整路径和读取元数据
             const audioFiles = await Promise.all(
               audioFileEntries.map(async (entry: any) => {
-                // 创建歌曲对象
-                const filePath = await join(path, entry.name);
-                return {
-                  id: filePath, // 使用文件路径作为唯一标识
-                  name: entry.name,
-                  path: filePath,
-                  artist: "未知艺术家", // 可以后续添加元数据提取功能
-                };
+                try {
+                  // 创建完整文件路径
+                  const filePath = await join(path, entry.name);
+
+                  // 读取元数据
+                  const metadata = await parseMetadata(filePath);
+
+                  // 创建歌曲对象
+                  return {
+                    id: filePath, // 使用文件路径作为唯一标识
+                    name: metadata.title,
+                    path: filePath,
+                    artist: metadata.artist,
+                    album: metadata.album,
+                    duration: metadata.duration,
+                  };
+                } catch (error) {
+                  // 元数据读取失败，使用基本信息
+                  console.error(`无法读取 ${entry.name} 的元数据:`, error);
+                  const filePath = await join(path, entry.name);
+                  const fileName = await basename(entry.name);
+
+                  return {
+                    id: filePath,
+                    name: fileName,
+                    path: filePath,
+                    artist: "未知艺术家",
+                    album: "未知专辑",
+                    duration: 0,
+                  };
+                }
               })
             );
 
@@ -57,26 +74,20 @@ function App() {
             setSongs(audioFiles);
 
             // 如果有歌曲且当前没有选中歌曲，则设置第一首为当前歌曲
-            if (audioFiles.length > 0 && !currentSong) {
+            if (audioFiles.length > 0 && !currentSong?.id) {
               setCurrentSong(audioFiles[0]);
             }
           })
           .catch((err) => console.error("读取音频目录失败:", err));
       })
       .catch((err) => console.error("获取音频目录失败:", err));
-  }, [currentSong, setCurrentSong, setSongs]);
-
-  const togglePlay = () => setIsPlaying(!isPlaying);
+  }, []);
 
   return (
     <div className="flex flex-col h-screen w-full bg-black text-white">
       <TitleBar />
-      <PlayerControls
-        isPlaying={isPlaying}
-        currentSong={currentSong}
-        togglePlay={togglePlay}
-      />
-      <PlayList songs={songs} currentSong={currentSong} />
+      <PlayerControls />
+      <PlayList />
     </div>
   );
 }
