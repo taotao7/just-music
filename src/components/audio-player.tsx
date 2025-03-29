@@ -18,7 +18,9 @@ export function AudioPlayer() {
   const [isLoading, setIsLoading] = useState(false);
   const [muted, setMuted] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isVolumeDragging, setIsVolumeDragging] = useState(false);
   const [seekToTime, setSeekToTime] = useState<number | null>(null);
+  const [pendingVolume, setPendingVolume] = useState<number | null>(null);
 
   const soundRef = useRef<Howl | null>(null);
   const rafIdRef = useRef<number | null>(null);
@@ -176,12 +178,20 @@ export function AudioPlayer() {
     }
   }, [isDragging, seekToTime]);
 
+  // 处理音量拖动结束后的设置
+  useEffect(() => {
+    if (!isVolumeDragging && pendingVolume !== null && soundRef.current) {
+      soundRef.current.volume(pendingVolume);
+      setPendingVolume(null);
+    }
+  }, [isVolumeDragging, pendingVolume]);
+
   // 监听音量变化
   useEffect(() => {
-    if (soundRef.current) {
+    if (soundRef.current && !isVolumeDragging) {
       soundRef.current.volume(volume);
     }
-  }, [volume]);
+  }, [volume, isVolumeDragging]);
 
   // 监听静音状态变化
   useEffect(() => {
@@ -268,14 +278,27 @@ export function AudioPlayer() {
     setIsDragging(false);
   };
 
-  // 更改音量
-  const changeVolume = (value: number) => {
+  // 更改音量 - 支持拖动模式
+  const changeVolume = (value: number, isDraggingNow = false) => {
     setVolume(value);
 
-    // 当设置音量时，确保直接应用到当前的Howl实例
+    // 当设置音量时
     if (soundRef.current) {
-      soundRef.current.volume(value);
+      if (isDraggingNow) {
+        // 如果正在拖动，记录待处理值
+        setIsVolumeDragging(true);
+        setPendingVolume(value);
+      } else {
+        // 如果不是拖动，直接应用
+        setIsVolumeDragging(false);
+        soundRef.current.volume(value);
+      }
     }
+  };
+
+  // 音量拖动结束
+  const volumeDragEnd = () => {
+    setIsVolumeDragging(false);
   };
 
   // 设置静音状态
@@ -344,6 +367,7 @@ export function AudioPlayer() {
     seek,
     seekEnd,
     changeVolume,
+    volumeDragEnd,
     playNext,
     playPrevious,
     playSong,

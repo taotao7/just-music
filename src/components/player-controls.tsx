@@ -29,6 +29,7 @@ export function PlayerControls() {
     seek,
     seekEnd,
     changeVolume,
+    volumeDragEnd,
     playNext,
     playPrevious,
     currentTime,
@@ -38,14 +39,17 @@ export function PlayerControls() {
     toggleMute,
   } = AudioPlayer();
 
-  // 确保组件卸载时调用seekEnd，避免内存泄漏
+  // 确保组件卸载时调用seekEnd和volumeDragEnd，避免内存泄漏
   useEffect(() => {
     return () => {
       if (isDraggingProgress) {
         seekEnd();
       }
+      if (isDraggingVolume) {
+        volumeDragEnd();
+      }
     };
-  }, [isDraggingProgress]);
+  }, [isDraggingProgress, isDraggingVolume]);
 
   // 处理进度滑块拖动开始
   const handleProgressDragStart = () => {
@@ -72,7 +76,8 @@ export function PlayerControls() {
   // 处理音量调节
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseFloat(e.target.value);
-    changeVolume(value);
+    changeVolume(value, true); // 传入true表示正在拖动
+
     if (value > 0) {
       setPreviousVolume(value);
       if (muted) {
@@ -86,6 +91,7 @@ export function PlayerControls() {
   // 处理音量滑块拖动结束
   const handleVolumeDragEnd = () => {
     setIsDraggingVolume(false);
+    volumeDragEnd();
   };
 
   // 点击进度条容器直接调整进度
@@ -108,7 +114,8 @@ export function PlayerControls() {
       const value = offsetX / containerWidth;
       const newVolume = Math.max(0, Math.min(1, value));
 
-      changeVolume(newVolume);
+      changeVolume(newVolume); // 直接点击，非拖动模式
+
       if (newVolume > 0) {
         setPreviousVolume(newVolume);
         if (muted) {

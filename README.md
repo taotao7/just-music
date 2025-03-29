@@ -7,8 +7,15 @@ I don't need to see chat history or any other messy features
 
 ## TODO
 
-- [ ] base ui
-- [ ] mp3 wav flac support
+- [x] base ui
+- [x] mp3 wav flac support
 - [ ] online file support
-- [ ] local file support
+- [x] local file support
 - [ ] desktop lyrics
+
+## How to use
+
+local music move your music file to your pc Music folder
+
+Windows: C:\Users\{{name}}\Music
+Mac: ~/Music
