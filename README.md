@@ -3,7 +3,7 @@
 This project aims to create a clean music player software
 I don't need to see chat history or any other messy features
 
-** keep simple and lightweight **
+**keep simple and lightweight**
 
 ## TODO
 

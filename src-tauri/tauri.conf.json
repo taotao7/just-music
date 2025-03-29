@@ -22,18 +22,7 @@
       }
     ],
     "security": {
-      "csp": null,
-      "capabilities": [
-        {
-          "identifier": "com.justmusic.app",
-          "windows": ["*"],
-          "permissions": [
-            "core:window:allow-start-dragging",
-            "core:window:allow-hide",
-            "core:app:allow-app-hide"
-          ]
-        }
-      ]
+      "csp": null
     }
   },
   "bundle": {
