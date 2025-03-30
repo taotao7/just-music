@@ -18,13 +18,13 @@ I don't need to see chat history or any other messy features
 
 local music move your music file to your pc Music folder
 
-Windows: C:\Users\{{name}}\Music
-Mac: ~/Music
+- Windows: C:\Users\{{name}}\Music
+- Mac: ~/Music
 
 ## Resource Usage
 
-- windows rams: 15MB
-- macos rams: 20MB
+- Windows rams: 15MB
+- Wacos rams: 20MB
 
 ## screenshot
 
