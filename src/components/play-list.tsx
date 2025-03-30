@@ -5,7 +5,8 @@ import { useState } from "react";
 import { useAudioPlayerContext } from "react-use-audio-player";
 import { readFile } from "@tauri-apps/plugin-fs";
 export function PlayList() {
-  const { songs, currentSong, setSongs, setCurrentSong } = useStore();
+  const { songs, currentSong, setSongs, setCurrentSong, handleNext } =
+    useStore();
   const [showConfirmClear, setShowConfirmClear] = useState(false);
   const { load, isPlaying } = useAudioPlayerContext();
 
@@ -45,6 +46,7 @@ export function PlayList() {
       onend() {
         // 播放结束后释放内存
         URL.revokeObjectURL(url);
+        handleNext();
       },
     });
   };

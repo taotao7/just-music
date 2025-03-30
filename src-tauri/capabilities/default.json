@@ -13,6 +13,8 @@
     "core:app:allow-app-hide",
     "core:path:allow-resolve-directory",
     "core:path:default",
+    "fs:allow-audio-read",
+    "fs:allow-audio-read-recursive",
     "fs:allow-app-write",
     "fs:allow-app-write-recursive",
     "fs:allow-appcache-write",
@@ -65,6 +67,7 @@
     "fs:allow-video-write",
     "fs:allow-video-write-recursive",
     "fs:write-all",
-    "fs:write-files"
+    "fs:write-files",
+    "fs:read-all"
   ]
 }

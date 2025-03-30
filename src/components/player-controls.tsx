@@ -12,18 +12,15 @@ import { useEffect, useRef, useState } from "react";
 import { useAudioPlayerContext } from "react-use-audio-player";
 import { formatTime } from "../utils/format-time";
 import { useStore } from "../store";
-import { readFile } from "@tauri-apps/plugin-fs";
-import { Song } from "../types";
 
 export function PlayerControls() {
-  const { currentSong, setShuffle, shuffle, songs, setCurrentSong } =
+  const { currentSong, setShuffle, shuffle, handleNext, handlePrev } =
     useStore();
   const [pos, setPos] = useState(0);
   const frameRef = useRef<number>();
 
   // 使用增强的音频播放器
   const {
-    load,
     duration,
     error,
     isLoading,
@@ -58,70 +55,6 @@ export function PlayerControls() {
     };
   }, [getPosition]);
 
-  // 优化后的切歌逻辑，减少冗余代码
-  const selectAndPlaySong = (song: Song) => {
-    if (!song) return;
-    playCurrentSong(song);
-  };
-
-  // 获取随机歌曲（排除当前歌曲）
-  const getRandomSong = () => {
-    // 获取当前歌曲的索引
-    const currentIndex = songs.findIndex((song) => song.id === currentSong?.id);
-
-    // 如果只有一首歌曲或没有歌曲，返回null
-    if (songs.length <= 1) return null;
-
-    // 确保随机到不同的歌曲
-    let randomIndex;
-    do {
-      randomIndex = Math.floor(Math.random() * songs.length);
-    } while (randomIndex === currentIndex && songs.length > 1);
-
-    return songs[randomIndex];
-  };
-
-  const handleNext = async () => {
-    if (shuffle) {
-      const nextSong = getRandomSong();
-      if (nextSong) selectAndPlaySong(nextSong);
-    } else {
-      const currentIndex = songs.findIndex(
-        (song) => song.id === currentSong?.id
-      );
-      if (currentIndex < songs.length - 1) {
-        selectAndPlaySong(songs[currentIndex + 1]);
-      }
-    }
-  };
-
-  const handlePrevious = () => {
-    if (shuffle) {
-      const prevSong = getRandomSong();
-      if (prevSong) selectAndPlaySong(prevSong);
-    } else {
-      const currentIndex = songs.findIndex(
-        (song) => song.id === currentSong?.id
-      );
-      if (currentIndex > 0) {
-        selectAndPlaySong(songs[currentIndex - 1]);
-      }
-    }
-  };
-
-  const playCurrentSong = async (song: Song) => {
-    const buffer = await readFile(song.path);
-    const url = URL.createObjectURL(new Blob([buffer]));
-    setCurrentSong(song);
-    load(url, {
-      format: song.extension,
-      autoplay: true,
-      onend() {
-        // 播放结束后释放内存
-        URL.revokeObjectURL(url);
-      },
-    });
-  };
   // 监听错误状态
   return (
     <div className="bg-zinc-900 px-3 py-2 border-b border-zinc-800 relative">
@@ -180,7 +113,7 @@ export function PlayerControls() {
         <button
           className="text-zinc-400 hover:text-white"
           disabled={isLoading}
-          onClick={handlePrevious}
+          onClick={handlePrev}
         >
           <SkipBack size={18} />
         </button>

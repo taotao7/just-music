@@ -7,9 +7,10 @@ import { audioDir, join, basename } from "@tauri-apps/api/path";
 import { useStore } from "./store";
 import { parseMetadata } from "./utils/metadata-parser";
 import { useAudioPlayerContext } from "react-use-audio-player";
+import { Song } from "./types";
 
 function App() {
-  const { setSongs, currentSong, setCurrentSong } = useStore();
+  const { setSongs, currentSong, handleNext } = useStore();
   const { load } = useAudioPlayerContext();
 
   useEffect(() => {
@@ -76,20 +77,34 @@ function App() {
             setSongs(audioFiles);
 
             // 如果有歌曲且当前没有选中歌曲，则设置第一首为当前歌曲
-            if (audioFiles.length > 0 && !currentSong?.id) {
-              setCurrentSong(audioFiles[0]);
-              const buffer = await readFile(audioFiles[0].path);
-              const url = URL.createObjectURL(new Blob([buffer]));
-              load(url, {
-                format: audioFiles[0].extension,
-                autoplay: false,
-              });
-            }
+            // if (audioFiles.length > 0 && !currentSong?.id) {
+            //   setCurrentSong(audioFiles[0]);
+            // }
           })
           .catch((err) => console.error("读取音频目录失败:", err));
       })
       .catch((err) => console.error("获取音频目录失败:", err));
   }, []);
+
+  const playCurrentSong = async (song: Song) => {
+    const buffer = await readFile(song.path);
+    const url = URL.createObjectURL(new Blob([buffer]));
+    load(url, {
+      format: song.extension,
+      autoplay: true,
+      onend() {
+        // 播放结束后释放内存
+        URL.revokeObjectURL(url);
+        handleNext();
+      },
+    });
+  };
+
+  useEffect(() => {
+    if (currentSong && currentSong?.id) {
+      playCurrentSong(currentSong);
+    }
+  }, [currentSong]);
 
   return (
     <div className="flex flex-col h-screen w-full bg-black text-white">
