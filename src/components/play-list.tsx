@@ -1,13 +1,13 @@
-import { List, Play, Trash2, Shuffle, Loader2 } from "lucide-react";
+import { List, Play, Trash2, Shuffle, Pause } from "lucide-react";
 import { useStore } from "../store";
-import { AudioPlayer } from "./audio-player";
 import { Song } from "../types";
 import { useState } from "react";
-
+import { useAudioPlayerContext } from "react-use-audio-player";
+import { readFile } from "@tauri-apps/plugin-fs";
 export function PlayList() {
-  const { songs, currentSong, setSongs } = useStore();
-  const { playSong, isLoading } = AudioPlayer();
+  const { songs, currentSong, setSongs, setCurrentSong } = useStore();
   const [showConfirmClear, setShowConfirmClear] = useState(false);
+  const { load, isPlaying } = useAudioPlayerContext();
 
   // 随机播放列表
   const shufflePlaylist = () => {
@@ -32,9 +32,21 @@ export function PlayList() {
   };
 
   // 播放指定歌曲
-  const handlePlaySong = (song: Song) => {
-    if (isLoading) return; // 如果正在加载，不响应点击
-    playSong(song);
+  const handlePlaySong = async (song: Song) => {
+    if (isCurrentSong(song)) {
+      return;
+    }
+    const buffer = await readFile(song.path);
+    const url = URL.createObjectURL(new Blob([buffer]));
+    setCurrentSong(song);
+    load(url, {
+      format: song.extension,
+      autoplay: true,
+      onend() {
+        // 播放结束后释放内存
+        URL.revokeObjectURL(url);
+      },
+    });
   };
 
   // 检查当前歌曲是否正在播放
@@ -55,7 +67,7 @@ export function PlayList() {
           <button
             className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center gap-0.5"
             onClick={shufflePlaylist}
-            disabled={isLoading || songs.length === 0}
+            disabled={songs.length === 0}
           >
             <Shuffle size={10} />
             随机
@@ -63,7 +75,7 @@ export function PlayList() {
           <button
             className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center gap-0.5"
             onClick={clearPlaylist}
-            disabled={isLoading || songs.length === 0}
+            disabled={songs.length === 0}
           >
             <Trash2 size={10} />
             清空
@@ -110,7 +122,7 @@ export function PlayList() {
                 isCurrentSong(song)
                   ? "bg-gradient-to-r from-purple-900/30 to-transparent"
                   : ""
-              } ${isLoading && isCurrentSong(song) ? "opacity-70" : ""}`}
+              }`}
               onClick={() => handlePlaySong(song)}
             >
               <div className="flex items-center px-2 py-1.5 cursor-pointer">
@@ -135,11 +147,7 @@ export function PlayList() {
                 </div>
                 {isCurrentSong(song) && (
                   <div className="text-purple-500">
-                    {isLoading ? (
-                      <Loader2 size={12} className="animate-spin" />
-                    ) : (
-                      <Play size={12} />
-                    )}
+                    {isPlaying ? <Pause size={12} /> : <Play size={12} />}
                   </div>
                 )}
               </div>

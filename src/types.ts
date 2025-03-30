@@ -5,4 +5,5 @@ export interface Song {
   artist: string;
   album?: string;
   duration?: number;
+  extension?: string;
 }

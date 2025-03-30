@@ -2,13 +2,15 @@ import { useEffect } from "react";
 import { TitleBar } from "./components/title-bar";
 import { PlayerControls } from "./components/player-controls";
 import { PlayList } from "./components/play-list";
-import { readDir } from "@tauri-apps/plugin-fs";
+import { readDir, readFile } from "@tauri-apps/plugin-fs";
 import { audioDir, join, basename } from "@tauri-apps/api/path";
 import { useStore } from "./store";
 import { parseMetadata } from "./utils/metadata-parser";
+import { useAudioPlayerContext } from "react-use-audio-player";
 
 function App() {
   const { setSongs, currentSong, setCurrentSong } = useStore();
+  const { load } = useAudioPlayerContext();
 
   useEffect(() => {
     // 读取音频目录
@@ -50,6 +52,7 @@ function App() {
                     artist: metadata.artist,
                     album: metadata.album,
                     duration: metadata.duration,
+                    extension: entry.name.split(".").pop(),
                   };
                 } catch (error) {
                   // 元数据读取失败，使用基本信息
@@ -76,6 +79,12 @@ function App() {
             // 如果有歌曲且当前没有选中歌曲，则设置第一首为当前歌曲
             if (audioFiles.length > 0 && !currentSong?.id) {
               setCurrentSong(audioFiles[0]);
+              const buffer = await readFile(audioFiles[0].path);
+              const url = URL.createObjectURL(new Blob([buffer]));
+              load(url, {
+                format: audioFiles[0].extension,
+                autoplay: false,
+              });
             }
           })
           .catch((err) => console.error("读取音频目录失败:", err));

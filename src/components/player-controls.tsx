@@ -8,147 +8,123 @@ import {
   VolumeX,
   Loader2,
 } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useAudioPlayerContext } from "react-use-audio-player";
+import { formatTime } from "../utils/format-time";
 import { useStore } from "../store";
-import { AudioPlayer } from "./audio-player";
+import { readFile } from "@tauri-apps/plugin-fs";
+import { Song } from "../types";
 
 export function PlayerControls() {
-  const { currentSong, isPlaying } = useStore();
-  const [shuffleMode, setShuffleMode] = useState(false);
-  const [previousVolume, setPreviousVolume] = useState(0.7); // 存储静音前的音量
-  const [isDraggingProgress, setIsDraggingProgress] = useState(false);
-  const [isDraggingVolume, setIsDraggingVolume] = useState(false);
+  const { currentSong, setShuffle, shuffle, songs, setCurrentSong } =
+    useStore();
+  const [pos, setPos] = useState(0);
+  const frameRef = useRef<number>();
 
-  const progressContainerRef = useRef<HTMLDivElement>(null);
-  const volumeContainerRef = useRef<HTMLDivElement>(null);
-
+  // 使用增强的音频播放器
   const {
-    progress,
-    volume,
-    togglePlay,
-    seek,
-    seekEnd,
-    changeVolume,
-    volumeDragEnd,
-    playNext,
-    playPrevious,
-    currentTime,
-    totalTime,
+    load,
+    duration,
+    error,
     isLoading,
-    muted,
+    setVolume,
+    volume,
+    isMuted,
     toggleMute,
-  } = AudioPlayer();
+    togglePlayPause,
+    getPosition,
+    isPlaying,
+    seek,
+  } = useAudioPlayerContext();
 
-  // 确保组件卸载时调用seekEnd和volumeDragEnd，避免内存泄漏
   useEffect(() => {
+    if (error) {
+      console.error("[ERROR] 音频播放错误:", error);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    const animate = () => {
+      setPos(getPosition());
+      frameRef.current = requestAnimationFrame(animate);
+    };
+
+    frameRef.current = window.requestAnimationFrame(animate);
+
     return () => {
-      if (isDraggingProgress) {
-        seekEnd();
-      }
-      if (isDraggingVolume) {
-        volumeDragEnd();
+      if (frameRef.current) {
+        cancelAnimationFrame(frameRef.current);
       }
     };
-  }, [isDraggingProgress, isDraggingVolume]);
+  }, [getPosition]);
 
-  // 处理进度滑块拖动开始
-  const handleProgressDragStart = () => {
-    setIsDraggingProgress(true);
+  // 优化后的切歌逻辑，减少冗余代码
+  const selectAndPlaySong = (song: Song) => {
+    if (!song) return;
+    playCurrentSong(song);
   };
 
-  // 处理进度滑块拖动
-  const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(e.target.value);
-    seek(value, true); // 传入true表示正在拖动
+  // 获取随机歌曲（排除当前歌曲）
+  const getRandomSong = () => {
+    // 获取当前歌曲的索引
+    const currentIndex = songs.findIndex((song) => song.id === currentSong?.id);
+
+    // 如果只有一首歌曲或没有歌曲，返回null
+    if (songs.length <= 1) return null;
+
+    // 确保随机到不同的歌曲
+    let randomIndex;
+    do {
+      randomIndex = Math.floor(Math.random() * songs.length);
+    } while (randomIndex === currentIndex && songs.length > 1);
+
+    return songs[randomIndex];
   };
 
-  // 处理进度滑块拖动结束
-  const handleProgressDragEnd = () => {
-    setIsDraggingProgress(false);
-    seekEnd();
-  };
-
-  // 处理音量滑块拖动开始
-  const handleVolumeDragStart = () => {
-    setIsDraggingVolume(true);
-  };
-
-  // 处理音量调节
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(e.target.value);
-    changeVolume(value, true); // 传入true表示正在拖动
-
-    if (value > 0) {
-      setPreviousVolume(value);
-      if (muted) {
-        toggleMute(false);
-      }
-    } else if (value === 0 && !muted) {
-      toggleMute(true);
-    }
-  };
-
-  // 处理音量滑块拖动结束
-  const handleVolumeDragEnd = () => {
-    setIsDraggingVolume(false);
-    volumeDragEnd();
-  };
-
-  // 点击进度条容器直接调整进度
-  const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (progressContainerRef.current && !isLoading) {
-      const rect = progressContainerRef.current.getBoundingClientRect();
-      const offsetX = e.clientX - rect.left;
-      const containerWidth = rect.width;
-      const percentage = (offsetX / containerWidth) * 100;
-      seek(percentage); // 不在拖动中，直接跳转
-    }
-  };
-
-  // 点击音量条容器直接调整音量
-  const handleVolumeBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (volumeContainerRef.current && !isLoading) {
-      const rect = volumeContainerRef.current.getBoundingClientRect();
-      const offsetX = e.clientX - rect.left;
-      const containerWidth = rect.width;
-      const value = offsetX / containerWidth;
-      const newVolume = Math.max(0, Math.min(1, value));
-
-      changeVolume(newVolume); // 直接点击，非拖动模式
-
-      if (newVolume > 0) {
-        setPreviousVolume(newVolume);
-        if (muted) {
-          toggleMute(false);
-        }
-      } else if (newVolume === 0 && !muted) {
-        toggleMute(true);
-      }
-    }
-  };
-
-  // 静音切换
-  const handleToggleMute = () => {
-    if (muted) {
-      // 恢复到之前的音量
-      changeVolume(previousVolume);
-      toggleMute(false);
+  const handleNext = async () => {
+    if (shuffle) {
+      const nextSong = getRandomSong();
+      if (nextSong) selectAndPlaySong(nextSong);
     } else {
-      // 记住当前音量并静音
-      if (volume > 0) {
-        setPreviousVolume(volume);
+      const currentIndex = songs.findIndex(
+        (song) => song.id === currentSong?.id
+      );
+      if (currentIndex < songs.length - 1) {
+        selectAndPlaySong(songs[currentIndex + 1]);
       }
-      toggleMute(true);
     }
   };
 
-  // 随机播放切换
-  const toggleShuffle = () => {
-    setShuffleMode(!shuffleMode);
+  const handlePrevious = () => {
+    if (shuffle) {
+      const prevSong = getRandomSong();
+      if (prevSong) selectAndPlaySong(prevSong);
+    } else {
+      const currentIndex = songs.findIndex(
+        (song) => song.id === currentSong?.id
+      );
+      if (currentIndex > 0) {
+        selectAndPlaySong(songs[currentIndex - 1]);
+      }
+    }
   };
 
+  const playCurrentSong = async (song: Song) => {
+    const buffer = await readFile(song.path);
+    const url = URL.createObjectURL(new Blob([buffer]));
+    setCurrentSong(song);
+    load(url, {
+      format: song.extension,
+      autoplay: true,
+      onend() {
+        // 播放结束后释放内存
+        URL.revokeObjectURL(url);
+      },
+    });
+  };
+  // 监听错误状态
   return (
-    <div className="bg-zinc-900 px-3 py-2 border-b border-zinc-800">
+    <div className="bg-zinc-900 px-3 py-2 border-b border-zinc-800 relative">
       <div className="flex justify-between items-center mb-1">
         <div className="truncate">
           <div className="text-sm font-medium truncate">
@@ -159,35 +135,31 @@ export function PlayerControls() {
           </div>
         </div>
         <div className="text-xs text-zinc-400 whitespace-nowrap ml-1">
-          {currentTime} / {totalTime}
+          {formatTime(pos)} / {formatTime(duration)}
         </div>
       </div>
 
       {/* 进度条 - 带有填充背景 */}
-      <div
-        className="mb-2 relative h-2 cursor-pointer"
-        ref={progressContainerRef}
-        onClick={handleProgressBarClick}
-      >
+      <div className="mb-2 relative h-2 cursor-pointer">
         {/* 背景条 */}
         <div className="absolute top-0 left-0 right-0 h-1 mt-0.5 bg-zinc-800 rounded-full"></div>
         {/* 填充条 */}
         <div
           className="absolute top-0 left-0 h-1 mt-0.5 bg-purple-500 rounded-full"
-          style={{ width: `${progress}%` }}
+          style={{ width: `${duration ? (pos / duration) * 100 : 0}%` }}
         ></div>
         {/* 实际滑块 - 透明但负责滑动功能 */}
         <input
           type="range"
           min="0"
-          max="100"
+          max={duration || 100}
+          value={pos}
           step="0.1"
-          value={progress}
-          onMouseDown={handleProgressDragStart}
-          onTouchStart={handleProgressDragStart}
-          onChange={handleProgressChange}
-          onMouseUp={handleProgressDragEnd}
-          onTouchEnd={handleProgressDragEnd}
+          onChange={(e) => {
+            const newPos = parseFloat(e.target.value);
+            seek(newPos);
+            setPos(newPos);
+          }}
           className="absolute top-0 left-0 w-full h-2 opacity-0 cursor-pointer"
           disabled={isLoading}
         />
@@ -196,24 +168,25 @@ export function PlayerControls() {
       {/* 控制按钮 */}
       <div className="flex justify-between items-center">
         <button
-          className={`text-zinc-400 hover:text-white ${
-            shuffleMode ? "text-purple-500" : ""
-          }`}
-          onClick={toggleShuffle}
+          className={`text-zinc-400 hover:text-white`}
           disabled={isLoading}
+          onClick={() => setShuffle(!shuffle)}
         >
-          <Shuffle size={16} />
+          <Shuffle
+            size={16}
+            className={`${shuffle ? "text-purple-500" : ""}`}
+          />
         </button>
         <button
           className="text-zinc-400 hover:text-white"
-          onClick={playPrevious}
           disabled={isLoading}
+          onClick={handlePrevious}
         >
           <SkipBack size={18} />
         </button>
         <button
-          onClick={togglePlay}
-          className="bg-purple-500 rounded-full p-1.5 hover:bg-purple-600 transition-colors"
+          onClick={togglePlayPause}
+          className={`bg-purple-500 rounded-full p-1.5 hover:bg-purple-600 transition-colors `}
           disabled={isLoading}
         >
           {isLoading ? (
@@ -226,28 +199,24 @@ export function PlayerControls() {
         </button>
         <button
           className="text-zinc-400 hover:text-white"
-          onClick={playNext}
           disabled={isLoading}
+          onClick={handleNext}
         >
           <SkipForward size={18} />
         </button>
         <div className="flex items-center gap-1">
           <button
             className={`text-zinc-400 hover:text-white flex-shrink-0 ${
-              muted ? "text-red-500" : ""
+              isMuted ? "text-red-500" : ""
             }`}
-            onClick={handleToggleMute}
+            onClick={() => toggleMute()}
             disabled={isLoading}
           >
-            {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+            {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
           </button>
 
           {/* 音量条 - 带有填充背景 */}
-          <div
-            className="relative w-16 h-4 cursor-pointer"
-            ref={volumeContainerRef}
-            onClick={handleVolumeBarClick}
-          >
+          <div className="relative w-16 h-4 cursor-pointer">
             {/* 背景条 */}
             <div className="absolute top-0 left-0 right-0 h-1 mt-1.5 bg-zinc-800 rounded-full"></div>
             {/* 填充条 */}
@@ -261,12 +230,7 @@ export function PlayerControls() {
               min="0"
               max="1"
               step="0.01"
-              value={volume}
-              onMouseDown={handleVolumeDragStart}
-              onTouchStart={handleVolumeDragStart}
-              onChange={handleVolumeChange}
-              onMouseUp={handleVolumeDragEnd}
-              onTouchEnd={handleVolumeDragEnd}
+              onChange={(e) => setVolume(parseFloat(e.target.value))}
               className="absolute top-0 left-0 w-full h-4 opacity-0 cursor-pointer"
               disabled={isLoading}
             />
