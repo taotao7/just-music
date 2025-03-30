@@ -72,7 +72,6 @@ function App() {
               })
             );
 
-            console.log("找到音频文件:", audioFiles);
             // 设置歌曲列表
             setSongs(audioFiles);
 

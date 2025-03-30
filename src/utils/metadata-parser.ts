@@ -20,7 +20,6 @@ export async function parseMetadata(filePath: string): Promise<AudioMetadata> {
     try {
       // 解析元数据 - 使用 music-metadata 库
       const metadata = await mm.parseBuffer(fileData);
-      console.log(metadata);
 
       // 提取所需信息
       return {
